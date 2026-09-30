@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>مولّد أسئلة الاختيار من متعدد الذكي</title>
+    <title>مولّد أسئلة الاختيار من متعدد</title>
     <style>
         body {
             font-family: 'Tahoma', sans-serif;
@@ -111,7 +111,7 @@
             background: #0f172a;
             padding: 15px;
             border-radius: 8px;
-            max-height: 400px;
+            max-height: 450px;
             overflow-y: auto;
         }
         .question-box {
@@ -133,6 +133,7 @@
             border-radius: 6px;
             cursor: pointer;
             transition: 0.2s;
+            font-size: 15px;
         }
         .options-list li:hover {
             background: #475569;
@@ -202,8 +203,8 @@
             return;
         }
 
-        // تقسيم النص إلى جمل واضحة
-        let rawSentences = textContent.split(/[.\n]/).map(s => s.trim()).filter(s => s.length > 20);
+        // تقسيم النص إلى جمل مفيدة
+        let rawSentences = textContent.split(/[.\n]/).map(s => s.trim()).filter(s => s.length > 25);
         
         if (rawSentences.length === 0) {
             boxOutput.innerHTML = "<p style='color: #f87171;'>النص قصير جداً، يرجى وضع جمل أطول ومفيدة.</p>";
@@ -213,56 +214,36 @@
         let finalHtml = "<h3>اختر الإجابة الصحيحة لكل سؤال:</h3>";
         let totalQ = Math.min(limitCount, rawSentences.length);
 
-        // بنك خيارات وهمية إضافية للتنوع
-        let generalPool = [
-            "العلوم الطبيعية البحتة",
-            "القرن التاسع عشر الميلادي",
-            "القطاع الزراعي والصناعي",
-            "نظرية العرض والطلب الكلاسيكية",
-            "زيادة التكاليف الثابتة",
-            "العالم الإنجليزي جون لوك",
-            "الموارد البشرية المتاحة"
+        // بنك إجابات خاطئة متنوعة ومنطقية للاستعانة بها
+        let wrongPool = [
+            "يعد فرعاً من فروع العلوم الطبيعية البحتة",
+            "تم اعتماده لأول مرة خلال القرن العشرين",
+            "يركز بشكل أساسي على القطاع الزراعي فقط",
+            "يعتمد على إلغاء الأسواق الحرة كلياً",
+            "لا يوجد أي ارتباط بينه وبين الموارد المتاحة",
+            "ظهر لأول مرة في الحضارات القديمة قبل الميلاد"
         ];
 
         for (let i = 0; i < totalQ; i++) {
-            let sentence = rawSentences[i];
-            let words = sentence.split(" ");
+            let correctStatement = rawSentences[i];
             
-            if (words.length < 5) continue;
+            // صياغة سؤال حقيقي واحترافي بناءً على الجملة
+            let questionTitle = `ما هو الصحيح وفقاً للنص حول: <br><span style="color: #38bdf8; font-size: 14px;">"${correctStatement.substring(0, 45)}..."</span>`;
 
-            // نختار كلمة أو كلمتين عشوائيتين من منتصف الجملة لتكون هي الجواب الصحيح
-            let targetIndex = Math.floor(words.length / 2);
-            let rightChoice = words[targetIndex];
-            
-            // تنظيف الكلمة من الرموز إن وجدت
-            rightChoice = rightChoice.replace(/[.,،]/g, "");
-            if (rightChoice.length < 3 && targetIndex > 0) {
-                targetIndex--;
-                rightChoice = words[targetIndex].replace(/[.,،]/g, "");
-            }
+            // الخيارات: الخيار الأول هو الجملة الصحيحة نفسها كاملة
+            let choices = [correctStatement];
 
-            // إنشاء السؤال بإخفاء الجواب بـ (____)
-            words[targetIndex] = "____";
-            let questionText = words.join(" ");
-
-            // تجهيز الخيارات (1 صحيح + 3 خيارات أخرى)
-            let choices = [rightChoice];
-            
-            // أخذ خيارات خاطئة من نفس الجملة أو من البنك العام
-            for (let w of words) {
-                let cleanW = w.replace(/[.,،]/g, "");
-                if (cleanW.length > 3 && cleanW !== "____" && !choices.includes(cleanW)) {
-                    choices.push(cleanW);
+            // إضافة 3 خيارات خاطئة من البنك أو من جمل أخرى
+            for (let w of wrongPool) {
+                if (choices.length < 4 && !choices.includes(w)) {
+                    choices.push(w);
                 }
             }
 
-            // إكمال الخيارات إذا كانت ناقصة من البنك العام
-            while(choices.length < 4 && generalPool.length > 0) {
-                let randGen = generalPool[Math.floor(Math.random() * generalPool.length)];
-                if (!choices.includes(randGen)) {
-                    choices.push(randGen);
-                } else {
-                    break;
+            // إذا احتاج خيارات إضافية، نأخذ جمل أخرى من النص كمشتتات
+            for (let other of rawSentences) {
+                if (choices.length < 4 && other !== correctStatement && !choices.includes(other)) {
+                    choices.push(other);
                 }
             }
 
@@ -270,12 +251,13 @@
             choices.sort(() => Math.random() - 0.5);
 
             finalHtml += `<div class="question-box">`;
-            finalHtml += `<p><strong>س${i+1}:</strong> ${questionText}</p>`;
+            finalHtml += `<p><strong>س${i+1}:</strong> ${questionTitle}</p>`;
             finalHtml += `<ul class="options-list">`;
             
             choices.forEach(ch => {
-                let isRight = (ch === rightChoice);
-                finalHtml += `<li onclick="verifyChoice(this, ${isRight}, '${rightChoice}')">${ch}</li>`;
+                let isRight = (ch === correctStatement);
+                // نخزن الإجابة الصحيحة مقارنة بالنص الكامل
+                finalHtml += `<li onclick="verifyChoice(this, ${isRight}, '${btoa(encodeURIComponent(correctStatement))}')">${ch}</li>`;
             });
 
             finalHtml += `</ul></div>`;
@@ -284,20 +266,21 @@
         boxOutput.innerHTML = finalHtml;
     }
 
-    function verifyChoice(element, isRight, correctVal) {
+    function verifyChoice(element, isRight, encodedCorrect) {
         let parentList = element.parentElement;
         let allItems = parentList.querySelectorAll('li');
+        let decodedCorrect = decodeURIComponent(atob(encodedCorrect));
         
         allItems.forEach(li => {
             li.style.pointerEvents = 'none'; // تعطيل الضغط بعد الإجابة
-            // تلوين الإجابة الصحيحة بالخضراء تلقائياً
-            if (li.innerText.trim() === correctVal) {
+            // تلوين الإجابة الصحيحة باللون الأخضر تلقائياً
+            if (li.innerText.trim() === decodedCorrect.trim()) {
                 li.classList.add('correct');
             }
         });
 
         if (!isRight) {
-            element.classList.add('wrong'); // تلوين الخيار الخطأ بالأحمر إذا اختاره المستخدم
+            element.classList.add('wrong'); // تلوين الخيار الخطأ بالأحمر إذا اختاره الطالب
         }
     }
 </script>
