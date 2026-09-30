@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>مولّد أسئلة الاختيار من متعدد</title>
+    <title>مولّد أسئلة الاختيار من متعدد الذكي</title>
     <style>
         body {
             font-family: 'Tahoma', sans-serif;
@@ -116,7 +116,7 @@
         }
         .question-box {
             background: #1e293b;
-            padding: 12px;
+            padding: 15px;
             border-radius: 8px;
             margin-bottom: 15px;
             border: 1px solid #334155;
@@ -128,8 +128,8 @@
         }
         .options-list li {
             background: #334155;
-            padding: 8px 12px;
-            margin-bottom: 5px;
+            padding: 10px 12px;
+            margin-bottom: 6px;
             border-radius: 6px;
             cursor: pointer;
             transition: 0.2s;
@@ -202,46 +202,80 @@
             return;
         }
 
-        let sentenceList = textContent.split(/[.\n]/).filter(s => s.trim().length > 15);
+        // تقسيم النص إلى جمل واضحة
+        let rawSentences = textContent.split(/[.\n]/).map(s => s.trim()).filter(s => s.length > 20);
         
-        if (sentenceList.length === 0) {
-            boxOutput.innerHTML = "<p style='color: #f87171;'>النص قصير جداً، يرجى وضع نص أطول أو جمل واضحة.</p>";
+        if (rawSentences.length === 0) {
+            boxOutput.innerHTML = "<p style='color: #f87171;'>النص قصير جداً، يرجى وضع جمل أطول ومفيدة.</p>";
             return;
         }
 
-        let finalHtml = "<h3>الأسئلة والاختيارات:</h3>";
-        let totalQ = Math.min(limitCount, sentenceList.length);
+        let finalHtml = "<h3>اختر الإجابة الصحيحة لكل سؤال:</h3>";
+        let totalQ = Math.min(limitCount, rawSentences.length);
 
-        let distractors = [
-            "لا يوجد علاقة بين الموارد والحاجات",
-            "هذه العبارة غير دقيقة علمياً",
-            "يعتمد كلياً على القطاع الزراعي فقط",
-            "تم إقرار هذا المبدأ في القرن العشرين",
-            "تعتبر هذه الظاهرة ثانوية وغير مؤثرة"
+        // بنك خيارات وهمية إضافية للتنوع
+        let generalPool = [
+            "العلوم الطبيعية البحتة",
+            "القرن التاسع عشر الميلادي",
+            "القطاع الزراعي والصناعي",
+            "نظرية العرض والطلب الكلاسيكية",
+            "زيادة التكاليف الثابتة",
+            "العالم الإنجليزي جون لوك",
+            "الموارد البشرية المتاحة"
         ];
 
         for (let i = 0; i < totalQ; i++) {
-            let rightChoice = sentenceList[i].trim();
-            if (rightChoice.length > 50) rightChoice = rightChoice.substring(0, 47) + "...";
+            let sentence = rawSentences[i];
+            let words = sentence.split(" ");
+            
+            if (words.length < 5) continue;
 
+            // نختار كلمة أو كلمتين عشوائيتين من منتصف الجملة لتكون هي الجواب الصحيح
+            let targetIndex = Math.floor(words.length / 2);
+            let rightChoice = words[targetIndex];
+            
+            // تنظيف الكلمة من الرموز إن وجدت
+            rightChoice = rightChoice.replace(/[.,،]/g, "");
+            if (rightChoice.length < 3 && targetIndex > 0) {
+                targetIndex--;
+                rightChoice = words[targetIndex].replace(/[.,،]/g, "");
+            }
+
+            // إنشاء السؤال بإخفاء الجواب بـ (____)
+            words[targetIndex] = "____";
+            let questionText = words.join(" ");
+
+            // تجهيز الخيارات (1 صحيح + 3 خيارات أخرى)
             let choices = [rightChoice];
             
-            while(choices.length < 4) {
-                let randomWrong = distractors[Math.floor(Math.random() * distractors.length)];
-                if(!choices.includes(randomWrong)) {
-                    choices.push(randomWrong);
+            // أخذ خيارات خاطئة من نفس الجملة أو من البنك العام
+            for (let w of words) {
+                let cleanW = w.replace(/[.,،]/g, "");
+                if (cleanW.length > 3 && cleanW !== "____" && !choices.includes(cleanW)) {
+                    choices.push(cleanW);
                 }
             }
 
+            // إكمال الخيارات إذا كانت ناقصة من البنك العام
+            while(choices.length < 4 && generalPool.length > 0) {
+                let randGen = generalPool[Math.floor(Math.random() * generalPool.length)];
+                if (!choices.includes(randGen)) {
+                    choices.push(randGen);
+                } else {
+                    break;
+                }
+            }
+
+            // خلط الخيارات عشوائياً
             choices.sort(() => Math.random() - 0.5);
 
             finalHtml += `<div class="question-box">`;
-            finalHtml += `<p><strong>س${i+1}:</strong> من خلال النص، ما هو الصحيح حول: <br><span style="color: #38bdf8;">"${rightChoice}"</span></p>`;
+            finalHtml += `<p><strong>س${i+1}:</strong> ${questionText}</p>`;
             finalHtml += `<ul class="options-list">`;
             
             choices.forEach(ch => {
                 let isRight = (ch === rightChoice);
-                finalHtml += `<li onclick="verifyChoice(this, ${isRight})">${ch}</li>`;
+                finalHtml += `<li onclick="verifyChoice(this, ${isRight}, '${rightChoice}')">${ch}</li>`;
             });
 
             finalHtml += `</ul></div>`;
@@ -250,19 +284,20 @@
         boxOutput.innerHTML = finalHtml;
     }
 
-    function verifyChoice(element, isRight) {
+    function verifyChoice(element, isRight, correctVal) {
         let parentList = element.parentElement;
         let allItems = parentList.querySelectorAll('li');
         
         allItems.forEach(li => {
-            li.style.pointerEvents = 'none';
-            if(li.getAttribute('onclick').includes('true')) {
+            li.style.pointerEvents = 'none'; // تعطيل الضغط بعد الإجابة
+            // تلوين الإجابة الصحيحة بالخضراء تلقائياً
+            if (li.innerText.trim() === correctVal) {
                 li.classList.add('correct');
             }
         });
 
         if (!isRight) {
-            element.classList.add('wrong');
+            element.classList.add('wrong'); // تلوين الخيار الخطأ بالأحمر إذا اختاره المستخدم
         }
     }
 </script>
